@@ -33,7 +33,21 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String
-  }
+  },
+  otp: {
+  type: String,
+},
+otpExpiresAt: {
+  type: Date,
+},
+image: {
+    type: String, 
+    default: null
+  },
+      deletedAt: {
+        type: Date,
+        default: null
+    }
 });
 
 

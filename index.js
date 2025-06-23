@@ -1,9 +1,11 @@
+require('dotenv').config();
 const bodyParser = require('body-parser');
 const express = require('express');
 const app = express()
 const port = 3000;
 const Route = require('./src/Route/userRoute');
 const database = require('./src/config/database');
+
 
 
 
