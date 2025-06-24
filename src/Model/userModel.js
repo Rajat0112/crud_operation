@@ -27,27 +27,27 @@ const userSchema = new mongoose.Schema({
   age: {
     type: Number
   },
-  phoneNumber:{
-    type:Number,
-    required : true
+  phoneNumber: {
+    type: Number,
+    required: true
   },
   password: {
     type: String
   },
   otp: {
-  type: String,
-},
-otpExpiresAt: {
-  type: Date,
-},
-image: {
-    type: String, 
+    type: String,
+  },
+  otpExpiresAt: {
+    type: Date,
+  },
+  image: {
+    type: String,
     default: null
   },
-      deletedAt: {
-        type: Date,
-        default: null
-    }
+  deletedAt: {
+    type: Date,
+    default: null
+  }
 });
 
 

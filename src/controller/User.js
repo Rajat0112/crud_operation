@@ -7,7 +7,7 @@ require('dotenv').config();
 
 const userController = {};
 
-
+// Signup -----
 userController.Signup = async (req, res) => {
   try {
     const {
@@ -25,6 +25,12 @@ userController.Signup = async (req, res) => {
     if (!firstName || !lastName || !username || !gender || !email || !age || !phoneNumber || !password) {
       return res.status(400).json({ message: 'Please enter a missing Field' });
     }
+
+    if (!image) {
+      return res.status(400).json({ message: 'Please upload an image' });
+    }
+
+
     // Check for existing user
     const existingEmail = await User.findOne({ email });
     if (existingEmail) {
@@ -84,6 +90,7 @@ userController.Signup = async (req, res) => {
 
 
 
+
 // OTP verify --------------->
 userController.otpVerification = async (req, res) => {
   try {
@@ -111,6 +118,10 @@ userController.otpVerification = async (req, res) => {
       return res.status(400).json({ message: 'Invalid OTP, Please enter a valid OTP!!' });
     }
 
+    user.otp = undefined;
+    user.otpExpiresAt = undefined;
+    await user.save();
+
     return res.status(200).json({ message: 'OTP verified successfully' });
 
   } catch (err) {
@@ -121,9 +132,7 @@ userController.otpVerification = async (req, res) => {
 
 
 
-
 // Login -------
-
 const JWT_SECRET = 'your_secret_key';
 
 userController.login = async (req, res) => {
@@ -154,7 +163,6 @@ userController.login = async (req, res) => {
     };
     const token = jwt.sign(payload, JWT_SECRET);
 
-    // Send success response
     res.status(200).json({
       message: 'Login successful.',
       user: {
@@ -170,173 +178,6 @@ userController.login = async (req, res) => {
   }
 };
 
-
-
-
-// Get Profile By Id :)----
-userController.getProfile = async (req, res) => {
-  try {
-    const userId = req.params.id;
-    const userProfile = await User.findById(userId);
-
-    if (!userProfile) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    res.status(200).json(userProfile);
-    console.log(userProfile);
-
-  } catch (err) {
-    res.status(500).json({ message: 'Error fetching user profile', error: err.message });
-  }
-};
-
-
-
-// Update profile by Id----------------->
-userController.updateProfile = async (req, res) => {
-  try {
-    const userId = req.params.id;
-    const { firstName, lastName, username, gender, email, age, phoneNumber } = req.body;
-    const updatedUser = await User.findByIdAndUpdate(userId, req.body);
-
-    if (!updatedUser) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    console.log('Updated User:', updatedUser);
-    return res.status(200).json(updatedUser);
-
-  } catch (err) {
-    console.error('Update Error:', err.message);
-    return res.status(500).json({ message: 'Error updating user profile', error: err.message });
-  }
-};
-
-
-// Add User ------------>
-userController.addUser = async (req, res) => {
-  try {
-    const {
-      firstName,
-      lastName,
-      username,
-      gender,
-      email,
-      age,
-      phoneNumber
-    } = req.body;
-
-    const image = req.file
-      ? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`
-      : null;
-
-    // Simple validation
-    if (!firstName || !lastName || !username || !email) {
-      return res.status(400).json({ message: 'Required fields missing' });
-    }
-    const newUser = new User({
-      firstName,
-      lastName,
-      username,
-      gender,
-      email,
-      age,
-      phoneNumber,
-      image
-    });
-
-    await newUser.save();
-    res.status(201).json({ message: 'User added successfully', user: newUser });
-  } catch (error) {
-    console.error('Error adding user:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-
-
-
-// Update User By Id ----------------->>***
-userController.updateUser = async (req, res) => {
-  try {
-    const userId = req.params.id;
-    const { firstName, lastName, username, password, gender, age, email, phoneNumber } = req.body;
-
-    if (!firstName || !lastName || !phoneNumber || !email) {
-      return res.status(400).json({ success: false, message: 'Required fields are missing' });
-    }
-
-    const updateData = {
-      firstName,
-      lastName,
-      username,
-      password,
-      gender,
-      age,
-      email,
-      phoneNumber
-    };
-
-    if (req.file) {
-      const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-      updateData.image = imageUrl;
-    }
-    const updatedUser = await User.findByIdAndUpdate(userId, updateData);
-
-    if (!updatedUser) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
-
-    console.log('Update Data:', updateData);
-    return res.status(200).json({ success: true, message: 'User updated successfully', data: updatedUser });
-
-  } catch (err) {
-    console.error('Update Error:', err.message);
-    return res.status(500).json({ success: false, message: 'Error updating user data', error: err.message });
-  }
-};
-
-
-
-// Delete User by Id ^^^^^^^^^^^ Soft Delete >>>>>>>>>>>
-userController.deleteUser = async (req, res) => {
-  try {
-    const userId = req.params.id;
-
-    const deletedUser = await User.updateOne(
-      { _id: userId },
-      { $set: {deletedAt: new Date()
-       } }
-    );
-
-    if (deletedUser.matchedCount === 0) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    return res.status(200).json({ message: "User soft deleted successfully" });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-
-// Get Profile Via token 
-userController.profileList = async (req, res) => {
-  try {
-    const user = req.user; 
-
-    res.status(200).json({
-      success: true,
-      data: user
-    });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: "Server error"
-    });
-  }
-};
 
 
 
