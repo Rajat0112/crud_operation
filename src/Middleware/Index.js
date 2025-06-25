@@ -2,7 +2,49 @@ const jwt = require("jsonwebtoken");
 const path = require('path');
 const multer = require("multer");
 const User = require('../Model/userModel'); 
+const JWT_SECRET = 'your_secret_key'; 
 
+
+
+module.exports.authenticate = async function (req, res, next) {
+  console.log("hello from auth middleware");
+
+  let token;
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.split(" ")[0] === "Bearer"
+  ) {
+    token = req.headers.authorization.split(" ")[1];
+    console.log("Received Token:", token);
+  } else if (req.query && req.query.token) {
+    token = req.query.token;
+  } else {
+    token = req.body.token || req.query.token || req.headers["x-access-token"];
+  }
+  if (!token) {
+    return res.status(401).json({
+      status: false,
+      code: "CCS-E1000",
+      message: "Access denied. No token provided.",
+      payload: {},
+    });
+  }
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    console.log("Decoded Token:", decoded);
+    // Fetch full user data from DB
+    const user = await User.findById(decoded.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    req.user = user; 
+    next();
+  } catch (ex) {
+    console.error("JWT verification failed:", ex);
+    return res.status(400).json({ message: "Invalid or expired token." });
+  }
+};
 
 // Multer for Image --------
 

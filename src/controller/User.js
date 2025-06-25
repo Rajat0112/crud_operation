@@ -26,11 +26,13 @@ userController.Signup = async (req, res) => {
       return res.status(400).json({ message: 'Please enter a missing Field' });
     }
 
+    const image = req.file
+      ? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`
+      : null;
+
     if (!image) {
       return res.status(400).json({ message: 'Please upload an image' });
     }
-
-
     // Check for existing user
     const existingEmail = await User.findOne({ email });
     if (existingEmail) {
@@ -63,7 +65,8 @@ userController.Signup = async (req, res) => {
       phoneNumber,
       password: hashedPassword,
       otp,
-      otpExpiresAt
+      otpExpiresAt,
+      image
     });
 
     await newUser.save();
@@ -132,54 +135,256 @@ userController.otpVerification = async (req, res) => {
 
 
 
-// Login -------
-const JWT_SECRET = 'your_secret_key';
 
+// Login -------
+//const JWT_SECRET = 'your_secret_key';
+
+/*
+// without Token 
 userController.login = async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // Check for both the Fields ---
-    if (!username || !password) {
-      return res.status(400).json({ message: 'Both username and password are required to login.' });
+     if(!username || !password){
+      return res.status(400).json({message : "Please enter both username and password"});
+     }
+      if (!username){
+      returnres.status(400).json({message: "please enter a valid username"});
+    }
+     const user = await User.findOne({username})
+
+    const isPasswordMatched = await bcrypt.compare(password, user.password);
+    if(!isPasswordMatched){
+      return res.status(400).json({message : "Please enter a valid password"});
+    }
+ 
+    {
+      return res.status(200).json({ message: "user Successfully login", user })
     }
 
-    // Find user by username
-    const user = await User.findOne({ username });
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid username, Please enter a valid username!' });
+  }
+  catch(err){
+ return res.status(500).json({message: "Internal server error", error: err.message});
+  }
+}
+*/
+
+// With token ---------
+const JWT_SECRET = 'your_secret_key';
+userController.login = async(req, res) => {
+  try{
+    const { username, password} = req.body;
+    if(!username || !password){
+      return res.status(400).json({message: " Please Enter both the fields to login"});
+    }
+     const user = await User.findOne({username});
+    if(!user){
+      return res.status(400).json({message: "Invalid Username! Please enter a valid username "});
+    }
+   
+    const isPasswordMatched = await bcrypt.compare(password, user.password);
+    if(!isPasswordMatched){
+      return res.status(400).json({message : " Invalid Password! Please enter a valid password"});
     }
 
-    // Validate password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid password, Please enter a valid Password!' });
-    }
+    const token = jwt.sign(
+      {
+      userId : user._id,
+      username: user.username
+    }, JWT_SECRET ) 
 
-    // Create JWT
-    const payload = {
-      userId: user._id,
-      username: user.username,
-    };
-    const token = jwt.sign(payload, JWT_SECRET);
-
-    res.status(200).json({
-      message: 'Login successful.',
+    return res.status(200).json({mressage : "User Login Successfully!",
       user: {
         id: user._id,
         username: user.username
       },
       token
+    })
+  }
+  catch(err){
+    return res.status(500).json({message: "Internal Server errror", error: err.message});
+  }
+}
+
+
+
+// Get Profile Via token 
+userController.profileList = async (req, res) => {
+  try {
+    const user = req.user;
+    res.status(200).json({
+      success: true,
+      userProfile: user
+    });
+  } catch (err) {
+    console.error('Profile fetch error:', err);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching profile."
+    });
+  }
+};
+
+
+// Profile Update Via token ---------
+userController.profileUpdation = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { firstName, lastName, username, gender, email, age, phoneNumber } = req.body;
+    const updateData = { firstName, lastName, username, gender, email, age, phoneNumber };
+
+    if (req.file) {
+      const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+      updateData.image = imageUrl;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(userId, updateData, { new: true });
+
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    return res.status(200).json({
+      message: 'Profile updated successfully!',
+      user: updatedUser
     });
 
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error during login.' });
+  } catch (err) {
+    console.error('Update Error:', err.message);
+    return res.status(500).json({ message: 'Error updating profile', error: err.message });
   }
 };
 
 
 
+// Add User ------------>
+userController.addUser = async (req, res) => {
+  try {
+    const {
+      firstName,
+      lastName,
+      username,
+      gender,
+      email,
+      age,
+      phoneNumber
+    } = req.body;
+
+    const image = req.file
+      ? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`
+      : null;
+
+    // Simple validation
+    if (!firstName || !lastName || !username || !email || !gender || !age || !phoneNumber) {
+      return res.status(400).json({ message: 'Please enter all the Fields to Add User!!' });
+    }
+    const newUser = new User({
+      firstName,
+      lastName,
+      username,
+      gender,
+      email,
+      age,
+      phoneNumber,
+      image
+    });
+
+    await newUser.save();
+    res.status(201).json({ message: 'User added successfully', user: newUser });
+  } catch (error) {
+    console.error('Error adding user:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+
+
+// Get Profile By Id :)----
+userController.getProfile = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const userProfile = await User.findById(userId);
+
+    if (!userProfile) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.status(200).json(userProfile);
+    console.log(userProfile);
+
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching user profile', error: err.message });
+  }
+};
+
+
+
+// Update User By Id ----------------->>***
+userController.updateUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { firstName, lastName, username, gender, age, email, phoneNumber } = req.body;
+
+    if (!firstName || !lastName || !phoneNumber || !email) {
+      return res.status(400).json({ success: false, message: 'Required fields are missing' });
+    }
+
+    const updateData = {
+      firstName,
+      lastName,
+      username,
+      gender,
+      age,
+      email,
+      phoneNumber
+    };
+
+    if (req.file) {
+      const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+      updateData.image = imageUrl;
+    }
+    const updatedUser = await User.findByIdAndUpdate(userId, updateData, { new: true });
+
+    if (!updatedUser) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    console.log('Update Data:', updateData);
+    return res.status(200).json({ success: true, message: 'User updated successfully', data: updatedUser });
+
+  } catch (err) {
+    console.error('Update Error:', err.message);
+    return res.status(500).json({ success: false, message: 'Error updating user data', error: err.message });
+  }
+};
+
+
+
+
+// Delete User by Id ^^^^^^^^^^^ Soft Delete >>>>>>>>>>>
+userController.deleteUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    const deletedUser = await User.updateOne(
+      { _id: userId },
+      {
+        $set: {
+          deletedAt: new Date()
+        }
+      }
+    );
+
+    if (deletedUser.matchedCount === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.status(200).json({ message: "User soft deleted successfully" });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 
 
