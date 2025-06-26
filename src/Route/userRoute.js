@@ -5,10 +5,10 @@ const { uploadSingleImage, authenticate } = require('../Middleware/Index');
 
 
 router.post('/signup', uploadSingleImage, userController.Signup);
-router.post('/otp-verify', userController.otpVerification);
+router.post('/otp-verify', userController.otpVerification);  
 router.post('/login', userController.login);
-router.get("/profile", authenticate, userController.profileList);   // via token Get Profile
-router.put('/user/update', authenticate, uploadSingleImage, userController.profileUpdation);   // via token Update Profile
+router.get("/user/profile", authenticate, userController.getProfile);   // via token Get Profile
+router.put('/user/profile-update', authenticate, uploadSingleImage, userController.profileUpdate);   // via token Update Profile
 
 /*
 router.get('/user/get-profile/:id', userController.getProfile);
